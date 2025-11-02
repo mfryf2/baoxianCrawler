@@ -9,6 +9,7 @@ import os
 
 # 测试URL
 TEST_URL = "https://zhuanlan.zhihu.com/p/1967253690982335635"
+TEST_URL = "https://zhuanlan.zhihu.com/p/1967233914323072372"
 
 def test_basic():
     """测试基础功能"""
@@ -156,8 +157,6 @@ def main():
     
     # 运行测试
     results.append(("基础功能", test_basic()))
-    results.append(("批量抓取", test_batch()))
-    results.append(("性能统计", test_performance()))
     
     # 总结
     print("\n" + "=" * 70)

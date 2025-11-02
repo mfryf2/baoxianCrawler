@@ -1,6 +1,6 @@
 # 知乎文章抓取工具
 
-一个用于抓取知乎文章内容的Python工具，只抓取文章主体内容，不包括侧边栏等无关元素。
+一个用于抓取知乎文章内容的Python工具，支持单篇文章抓取和作者文章列表批量获取。只抓取文章主体内容，不包括侧边栏等无关元素。
 
 ## 快速开始
 
@@ -16,8 +16,11 @@
 # 1. 获取Cookie
 python3 get_cookie_helper.py -v
 
-# 2. 批量抓取
+# 2. 批量抓取文章
 python3 zhihu_crawler.py --batch urls.txt --cookie "你的Cookie" --workers 5
+
+# 3. 获取作者所有文章列表（新功能！）
+python3 zhihu_author_crawler.py "https://www.zhihu.com/org/nai-ba-bao-25/posts"
 
 # 单篇抓取
 python3 zhihu_crawler.py "URL" --cookie "你的Cookie"
@@ -34,15 +37,26 @@ python3 zhihu_crawler.py "URL" --cookie "你的Cookie"
    - ✅ 智能重试机制
    - ✅ 连接池优化
    - ✅ 详细统计信息
+
+2. **zhihu_author_crawler.py** - 🆕 作者文章列表抓取工具（新功能！）
+   - ✅ 获取作者所有文章标题和URL
+   - ✅ 支持机构账号和个人账号
+   - ✅ 多种输出格式（JSON、TXT、CSV）
+   - ✅ 智能分页获取
    
-2. **extract_from_saved.py** - 从已保存的网页提取内容（最简单）
-3. **zhihu_crawler_playwright.py** - 使用Playwright自动抓取（最稳定）
-4. **zhihu_crawler_selenium.py** - 使用Selenium抓取（备选）
+3. **extract_from_saved.py** - 从已保存的网页提取内容（最简单）
+4. **zhihu_crawler_playwright.py** - 使用Playwright自动抓取（最稳定）
+5. **zhihu_crawler_selenium.py** - 使用Selenium抓取（备选）
 
 ### 辅助工具
 
-5. **get_cookie_helper.py** - Cookie获取和验证工具
-6. **test_crawler.py** - 功能测试脚本
+6. **get_cookie_helper.py** - Cookie获取和验证工具
+7. **test_crawler.py** - 文章抓取功能测试脚本
+8. **test_author_crawler.py** - 作者抓取功能测试脚本
+9. **author_crawler_example.py** - 作者抓取使用示例
+10. **extract_urls_from_json.py** - 从JSON文件提取URL列表
+11. **complete_workflow_example.py** - 完整工作流程演示
+12. **AUTHOR_CRAWLER_GUIDE.md** - 作者抓取工具详细指南
 
 ## 功能特点
 
@@ -151,6 +165,70 @@ python zhihu_crawler_selenium.py <知乎文章URL> [输出文件名]
 ```
 
 **注意：** Selenium版本需要安装Chrome浏览器和ChromeDriver
+
+### 方法4: 获取作者所有文章列表（🆕 新功能）
+
+**功能说明：**
+- 获取知乎作者（个人或机构）的所有文章标题和URL
+- 支持大量文章的分页获取（如4693篇文章）
+- 多种输出格式：JSON、TXT、CSV
+- 可用于后续批量抓取或数据分析
+
+**基础用法：**
+```bash
+# 获取作者所有文章
+python3 zhihu_author_crawler.py "https://www.zhihu.com/org/nai-ba-bao-25/posts"
+
+# 限制获取数量
+python3 zhihu_author_crawler.py "https://www.zhihu.com/org/nai-ba-bao-25/posts" --max-articles 100
+
+# 指定输出格式
+python3 zhihu_author_crawler.py "https://www.zhihu.com/org/nai-ba-bao-25/posts" --format json
+
+# 使用Cookie（推荐）
+python3 zhihu_author_crawler.py "https://www.zhihu.com/org/nai-ba-bao-25/posts" --cookie "你的Cookie"
+```
+
+**高级选项：**
+```bash
+# 完整参数示例
+python3 zhihu_author_crawler.py "作者URL" \
+    --max-articles 1000 \
+    --delay 1.0 \
+    --format all \
+    --output "author_name" \
+    --cookie "你的Cookie"
+```
+
+**支持的作者URL格式：**
+- 机构账号：`https://www.zhihu.com/org/机构ID/posts`
+- 个人账号：`https://www.zhihu.com/people/用户ID/posts`
+
+**输出文件说明：**
+- **JSON格式**：包含完整的文章信息（标题、URL、发布时间、点赞数等）
+- **TXT格式**：人类可读的文本格式，便于查看
+- **CSV格式**：表格格式，便于导入Excel或数据库
+
+**典型工作流程：**
+```bash
+# 1. 获取作者文章列表
+python3 zhihu_author_crawler.py "https://www.zhihu.com/org/nai-ba-bao-25/posts" --format csv
+
+# 2. 从CSV中提取URL创建批量抓取文件
+# （可以用Excel或脚本处理CSV文件）
+
+# 3. 批量抓取文章内容
+python3 zhihu_crawler.py --batch extracted_urls.txt --cookie "你的Cookie"
+```
+
+**测试新功能：**
+```bash
+# 运行测试脚本
+python3 test_author_crawler.py
+
+# 查看使用示例
+python3 author_crawler_example.py
+```
 
 ## 输出格式
 

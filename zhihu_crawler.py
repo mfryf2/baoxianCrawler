@@ -34,10 +34,13 @@ class ZhihuArticleCrawler:
         self.base_headers = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
             'Cache-Control': 'max-age=0',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
         }
         
         self.cookie = cookie
@@ -169,9 +172,12 @@ class ZhihuArticleCrawler:
         ]
         
         for tag, attrs in content_selectors:
-            article_content = soup.find(tag, attrs)
-            if article_content and len(article_content.get_text().strip()) > 100:
-                break
+            found_element = soup.find(tag, attrs)
+            if found_element:
+                content_text = found_element.get_text().strip()
+                if len(content_text) > 100:
+                    article_content = found_element
+                    break
         
         if not article_content:
             raise Exception("未找到文章内容，可能需要登录或Cookie")
