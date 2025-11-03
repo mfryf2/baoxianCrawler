@@ -129,6 +129,46 @@ class ZhihuArticleCrawler:
         
         raise Exception("达到最大重试次数")
     
+    def _clean_html_content(self, html_element):
+        """
+        清理HTML内容，移除无效的CSS和冗余样式
+        
+        Args:
+            html_element: BeautifulSoup元素
+            
+        Returns:
+            str: 清理后的HTML字符串
+        """
+        # 移除所有style标签（特别是emotion-css标签）
+        for style_tag in html_element.find_all('style'):
+            style_tag.decompose()
+        
+        # 移除所有data-emotion-css属性和其他无用属性
+        for element in html_element.find_all(True):  # True表示所有元素
+            # 移除无用的属性
+            attrs_to_remove = [
+                'data-emotion-css',
+                'class',  # 移除emotion生成的类名
+                'data-pid',
+                'data-draft-type',
+                'data-first-child',
+                'data-search-entity',
+                'data-caption',
+                'data-original',
+                'data-original-token',
+                'data-rawheight',
+                'data-rawwidth',
+                'data-size',
+                'eeimg',
+            ]
+            
+            for attr in attrs_to_remove:
+                if element.has_attr(attr):
+                    del element[attr]
+        
+        # 返回清理后的HTML字符串
+        return str(html_element)
+    
     def fetch_article(self, url):
         """
         抓取知乎文章
@@ -181,6 +221,9 @@ class ZhihuArticleCrawler:
         
         if not article_content:
             raise Exception("未找到文章内容，可能需要登录或Cookie")
+        
+        # 清理内容中的CSS和无用属性
+        article_content = BeautifulSoup(self._clean_html_content(article_content), 'html.parser')
         
         # 提取作者信息
         author_name = ''
@@ -260,11 +303,20 @@ class ZhihuArticleCrawler:
             line-height: 1.6;
             color: #333;
         }}
+        h1, h2, h3, h4, h5, h6 {{
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-top: 1.5em;
+            margin-bottom: 0.8em;
+        }}
         h1 {{
             font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #1a1a1a;
+        }}
+        h2 {{
+            font-size: 24px;
+        }}
+        h3 {{
+            font-size: 20px;
         }}
         .meta-info {{
             color: #8590a6;
@@ -276,6 +328,7 @@ class ZhihuArticleCrawler:
         .article-content {{
             font-size: 16px;
             color: #1a1a1a;
+            word-break: break-word;
         }}
         .article-content img {{
             max-width: 100%;
@@ -286,23 +339,62 @@ class ZhihuArticleCrawler:
         .article-content p {{
             margin: 15px 0;
         }}
+        .article-content ul, .article-content ol {{
+            margin: 15px 0;
+            padding-left: 2em;
+        }}
+        .article-content li {{
+            margin: 8px 0;
+        }}
         .article-content pre {{
             background: #f6f6f6;
             padding: 15px;
             border-radius: 4px;
             overflow-x: auto;
+            font-size: 14px;
         }}
         .article-content code {{
             background: #f6f6f6;
             padding: 2px 6px;
             border-radius: 3px;
             font-family: "Courier New", monospace;
+            font-size: 0.95em;
+        }}
+        .article-content pre code {{
+            background: none;
+            padding: 0;
         }}
         .article-content blockquote {{
             border-left: 3px solid #ddd;
             padding-left: 15px;
             color: #666;
             margin: 15px 0;
+        }}
+        .article-content table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }}
+        .article-content table td, .article-content table th {{
+            border: 1px solid #ddd;
+            padding: 10px;
+        }}
+        .article-content table th {{
+            background: #f6f6f6;
+            font-weight: 600;
+        }}
+        .article-content hr {{
+            margin: 30px 0;
+            border: none;
+            border-top: 1px solid #ddd;
+        }}
+        a {{
+            color: #09408e;
+            text-decoration: none;
+            border-bottom: 1px solid #81858f;
+        }}
+        a:hover {{
+            border-bottom-color: #09408e;
         }}
     </style>
 </head>
