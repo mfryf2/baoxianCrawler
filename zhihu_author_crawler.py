@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 知乎作者文章列表抓取工具
-获取指定作者的所有文章标题和URL
+获取指定作者的所有文章标题和URL，并写入数据库
 """
 
 import requests
@@ -15,15 +15,203 @@ import sys
 import os
 from datetime import datetime
 from urllib.parse import urljoin, urlparse, parse_qs
+import pymysql
+from pymysql.cursors import DictCursor
+
+
+class DatabaseManager:
+    """数据库管理类"""
+    
+    def __init__(self, host='172.105.225.120', user='root', password='lnmp.org#25295', 
+                 database='wordpress', port=3306):
+        """
+        初始化数据库连接
+        
+        Args:
+            host: 数据库主机
+            user: 数据库用户
+            password: 数据库密码
+            database: 数据库名
+            port: 数据库端口
+        """
+        self.host = host
+        self.user = user
+        self.password = password
+        self.database = database
+        self.port = port
+        self.connection = None
+    
+    def connect(self):
+        """建立数据库连接"""
+        try:
+            self.connection = pymysql.connect(
+                host=self.host,
+                user=self.user,
+                password=self.password,
+                database=self.database,
+                port=self.port,
+                charset='utf8mb4'
+            )
+            print("✓ 数据库连接成功")
+            return True
+        except Exception as e:
+            print(f"❌ 数据库连接失败: {str(e)}")
+            return False
+    
+    def disconnect(self):
+        """关闭数据库连接"""
+        if self.connection:
+            self.connection.close()
+            print("✓ 数据库连接已关闭")
+    
+    def insert_article(self, article, author_info):
+        """
+        插入文章到数据库
+        
+        Args:
+            article: 文章信息字典
+            author_info: 作者信息字典
+            
+        Returns:
+            bool: 插入是否成功
+        """
+        if not self.connection:
+            print("❌ 数据库未连接")
+            return False
+        
+        try:
+            with self.connection.cursor() as cursor:
+                # 检查URL是否已存在
+                check_sql = "SELECT id FROM baoxianblog WHERE src_url = %s"
+                cursor.execute(check_sql, (article['url'],))
+                if cursor.fetchone():
+                    print(f"⚠️  URL已存在，跳过: {article['url']}")
+                    return False
+                
+                # 准备插入数据
+                insert_sql = """
+                    INSERT INTO baoxianblog 
+                    (src_url, src_title, src_content, published_user, src_user, 
+                     create_time, src_published_time, like_count, collect_count, 
+                     from_source, isPublish)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                
+                # 使用摘要作为内容，如果没有则使用空字符串
+                content = article.get('excerpt', '')[:500] if article.get('excerpt') else ''
+                
+                # 获取发布时间
+                published_time = article.get('created_time', '')
+                
+                values = (
+                    article['url'],
+                    article['title'],
+                    content,
+                    author_info['name'],
+                    author_info['name'],
+                    datetime.now(),
+                    published_time if published_time else None,
+                    article.get('voteup_count', -1),
+                    -1,  # collect_count 默认为-1
+                    'zhihu',
+                    0  # isPublish 默认为0（未发布）
+                )
+                
+                cursor.execute(insert_sql, values)
+                self.connection.commit()
+                print(f"✓ 成功保存: {article['title'][:50]}")
+                return True
+                
+        except Exception as e:
+            print(f"❌ 插入数据库失败: {str(e)}")
+            self.connection.rollback()
+            return False
+    
+    def insert_articles_batch(self, articles, author_info):
+        """
+        批量插入文章到数据库
+        
+        Args:
+            articles: 文章列表
+            author_info: 作者信息字典
+            
+        Returns:
+            dict: 包含成功和失败计数的统计信息
+        """
+        if not self.connection:
+            print("❌ 数据库未连接")
+            return {'success': 0, 'failed': 0, 'skipped': 0}
+        
+        stats = {'success': 0, 'failed': 0, 'skipped': 0}
+        
+        try:
+            with self.connection.cursor() as cursor:
+                for i, article in enumerate(articles, 1):
+                    try:
+                        # 检查URL是否已存在
+                        check_sql = "SELECT id FROM baoxianblog WHERE src_url = %s"
+                        cursor.execute(check_sql, (article['url'],))
+                        if cursor.fetchone():
+                            stats['skipped'] += 1
+                            continue
+                        
+                        # 准备插入数据
+                        insert_sql = """
+                            INSERT INTO baoxianblog 
+                            (src_url, src_title, src_content, published_user, src_user, 
+                             create_time, src_published_time, like_count, collect_count, 
+                             from_source, isPublish)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """
+                        
+                        # 使用摘要作为内容
+                        content = article.get('excerpt', '')[:500] if article.get('excerpt') else ''
+                        published_time = article.get('created_time', '')
+                        
+                        values = (
+                            article['url'],
+                            article['title'],
+                            content,
+                            author_info['name'],
+                            author_info['name'],
+                            datetime.now(),
+                            published_time if published_time else None,
+                            article.get('voteup_count', -1),
+                            -1,  # collect_count 默认为-1
+                            'zhihu',
+                            0
+                        )
+                        
+                        cursor.execute(insert_sql, values)
+                        stats['success'] += 1
+                        
+                        if i % 10 == 0:
+                            self.connection.commit()
+                            print(f"  已处理 {i}/{len(articles)} 篇文章...")
+                    
+                    except Exception as e:
+                        stats['failed'] += 1
+                        print(f"⚠️  处理第 {i} 篇文章失败: {str(e)}")
+                        continue
+                
+                # 最后提交一次
+                self.connection.commit()
+        
+        except Exception as e:
+            print(f"❌ 批量插入失败: {str(e)}")
+            self.connection.rollback()
+        
+        return stats
 
 
 class ZhihuAuthorCrawler:
-    def __init__(self, cookie=None):
+    def __init__(self, cookie=None, db_manager=None):
         """
         初始化作者爬虫
         
         Args:
             cookie: 可选的cookie字符串，用于绕过登录限制
+            db_manager: 可选的数据库管理器
         """
         self.user_agents = [
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -45,6 +233,7 @@ class ZhihuAuthorCrawler:
         
         self.cookie = cookie
         self.session = requests.Session()
+        self.db_manager = db_manager
         
         # API相关的headers
         self.api_headers = {
@@ -392,6 +581,20 @@ class ZhihuAuthorCrawler:
         
         print(f"\n✅ 获取完成！共获取 {len(articles)} 篇文章")
         
+        # 如果提供了数据库管理器，将数据保存到数据库
+        if self.db_manager and articles:
+            print("\n" + "=" * 80)
+            print("开始将数据保存到数据库...")
+            print("=" * 80)
+            
+            stats = self.db_manager.insert_articles_batch(articles, author_info)
+            result['db_stats'] = stats
+            
+            print(f"\n数据库保存统计:")
+            print(f"  成功: {stats['success']} 篇")
+            print(f"  失败: {stats['failed']} 篇")
+            print(f"  跳过: {stats['skipped']} 篇 (已存在)")
+        
         return result
     
     def _parse_from_html(self, author_url, author_info, max_articles=None):
@@ -738,8 +941,14 @@ def main():
         print("⚠️  警告: 未提供Cookie，可能会遇到访问限制")
         print("建议先运行: python3 get_cookie_helper.py")
     
+    # 创建数据库管理器实例
+    db_manager = DatabaseManager()
+    if not db_manager.connect():
+        print("❌ 无法连接数据库，退出程序。")
+        sys.exit(1)
+    
     # 创建爬虫实例
-    crawler = ZhihuAuthorCrawler(cookie=cookie)
+    crawler = ZhihuAuthorCrawler(cookie=cookie, db_manager=db_manager)
     
     try:
         print("=" * 80)
@@ -784,6 +993,8 @@ def main():
             print("\n💡 提示: 需要提供有效的Cookie")
             print("   运行 'python3 get_cookie_helper.py' 查看如何获取Cookie")
         sys.exit(1)
+    finally:
+        db_manager.disconnect()
 
 
 if __name__ == '__main__':

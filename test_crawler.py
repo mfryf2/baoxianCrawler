@@ -10,6 +10,7 @@ import os
 # 测试URL
 TEST_URL = "https://zhuanlan.zhihu.com/p/1967253690982335635"
 TEST_URL = "https://zhuanlan.zhihu.com/p/1967233914323072372"
+TEST_URL = "https://zhuanlan.zhihu.com/p/10202589651"
 
 def test_basic():
     """测试基础功能"""
@@ -32,13 +33,14 @@ def test_basic():
     
     try:
         print(f"\n正在测试URL: {TEST_URL}")
-        title, content, author, publish_time = crawler.fetch_article(TEST_URL)
+        article_info = crawler.fetch_article(TEST_URL)
         
         print(f"\n✅ 抓取成功！")
-        print(f"标题: {title}")
-        print(f"作者: {author or '未知'}")
-        print(f"发布时间: {publish_time or '未知'}")
-        print(f"内容长度: {len(str(content))} 字符")
+        print(f"标题: {article_info['title']}")
+        print(f"作者: {article_info['author'] or '未知'}")
+        print(f"发布时间: {article_info['publish_time'] or '未知'}")
+        print(f"赞同数: {article_info['like_count']}")
+        print(f"内容长度: {len(str(article_info['content']))} 字符")
         
         # 保存测试
         output_file = "test_output.html"
@@ -49,6 +51,8 @@ def test_basic():
         
     except Exception as e:
         print(f"\n❌ 测试失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
