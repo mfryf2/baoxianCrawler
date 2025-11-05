@@ -609,7 +609,7 @@ class ZhihuArticleCrawler:
             cursor = connection.cursor(DictCursor)
             
             # 查询未爬取的文章（src_url不为空，且还未有src_content的）
-            sql = "SELECT id, src_url FROM baoxianblog WHERE src_url IS NOT NULL AND src_url LIKE %s AND (src_content IS NULL OR src_content = '') LIMIT %s"
+            sql = "SELECT id, src_url FROM baoxianblog WHERE src_url IS NOT NULL AND src_url LIKE %s AND src_published_time IS NULL LIMIT %s"
             
             cursor.execute(sql, ('%zhihu%', limit))
             results = cursor.fetchall()

@@ -649,7 +649,8 @@ class ZhihuAuthorCrawler:
                     if href.startswith('/'):
                         full_url = 'https://www.zhihu.com' + href
                     elif href.startswith('http'):
-                        full_url = href
+                        # 确保使用 https
+                        full_url = href.replace('http://', 'https://')
                     else:
                         continue
                     
